@@ -80,8 +80,35 @@ resource "aws_security_group" "db" {
     security_groups = [aws_security_group.app.id]
   }
 
+  ingress {
+    description     = "PostgreSQL desde Lambdas serverless (pagos asíncronos)"
+    from_port       = 5432
+    to_port         = 5432
+    protocol        = "tcp"
+    security_groups = [aws_security_group.lambda_payments.id]
+  }
+
   tags = {
     Name        = "neopay-db-sg-${var.environment}"
+    Environment = var.environment
+  }
+}
+
+# Security Group para Lambdas en VPC (consumidor de cola -> RDS)
+resource "aws_security_group" "lambda_payments" {
+  name        = "neopay-lambda-pagos-sg-${var.environment}"
+  description = "Lambdas serverless NeoPay (acceso a RDS y tráfico de salida)"
+  vpc_id      = var.vpc_id
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name        = "neopay-lambda-pagos-sg-${var.environment}"
     Environment = var.environment
   }
 }
@@ -124,6 +151,10 @@ output "app_sg_id" {
 
 output "db_sg_id" {
   value = aws_security_group.db.id
+}
+
+output "lambda_payments_sg_id" {
+  value = aws_security_group.lambda_payments.id
 }
 
 output "ec2_instance_profile_name" {

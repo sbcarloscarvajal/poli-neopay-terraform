@@ -14,6 +14,12 @@
 # Log files
 *.log
 
+# Zips generados por Terraform (archive_file) en el módulo serverless
+modules/serverless/builds/*.zip
+
+# Dependencias empaquetadas para Lambda (Python)
+modules/serverless/lambda/consumer/package/__pycache__/
+
 # IDE
 .idea/
 .vscode/
