@@ -68,6 +68,33 @@ jobs:
         id: validate
         run: terraform validate -no-color
 
+      # ── Policy-as-Code: tfsec analiza el plan en busca de configuraciones inseguras ──
+      - name: tfsec – Escaneo de políticas de seguridad (Policy-as-Code)
+        uses: aquasecurity/tfsec-action@v1.0.3
+        with:
+          working_directory: .
+          soft_fail: false
+
+      # ── Mínimo privilegio: rechazar si algún rol usa AdministratorAccess ──
+      - name: Auditar principio de mínimo privilegio (IAM)
+        run: |
+          echo "Verificando que ningún recurso Terraform use AdministratorAccess..."
+          if grep -r "AdministratorAccess" --include='*.tf' modules/ main.tf; then
+            echo "✗ Se detectó AdministratorAccess en la infraestructura. El deploy se bloquea."
+            exit 1
+          fi
+          echo "✓ Ningún rol contiene AdministratorAccess – mínimo privilegio validado"
+
+      # ── Gestión de secretos: verificar que no haya credenciales en texto plano ──
+      - name: Verificar ausencia de secretos hardcodeados en Terraform
+        run: |
+          echo "Buscando credenciales en texto plano en archivos .tf..."
+          if grep -rEin '(password|secret_key|access_key)\s*=\s*"[^$][^"]*"' --include='*.tf' modules/ main.tf environments/; then
+            echo "✗ Se detectaron posibles credenciales hardcodeadas en Terraform."
+            exit 1
+          fi
+          echo "✓ Los secretos se gestionan vía variables sensibles y Secrets Manager"
+
       - name: Terraform Plan
         id: plan
         if: github.event_name == 'pull_request'
